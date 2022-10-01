@@ -3,12 +3,17 @@ using UnityEngine;
 public class Soldier : MonoBehaviour
 {
     const float SPEED = 2f;
+    const float AUDIO_PITCH_HALF_RANGE = 0.2f;
     static Vector3 Y_MASK = new Vector3(1f, 0f, 1f);
 
-    public Transform target;
+    [SerializeField]
+    SoldierSound sounds;
 
     [SerializeField]
     new Rigidbody rigidbody;
+
+    [SerializeField]
+    new AudioSource audio;
 
     [SerializeField]
     Billboard billboard;
@@ -21,6 +26,9 @@ public class Soldier : MonoBehaviour
     public Squad squad;
 
     public int indexInSquad;
+
+    public Transform target;
+    Vector3 lastTargetPosition;
 
     public bool Alive { get; private set; } = true;
     public event System.Action<int> OnDie;
@@ -38,6 +46,12 @@ public class Soldier : MonoBehaviour
     void FixedUpdate()
     {
         if (!timer.Active || !target || !Alive) return;
+
+        if (lastTargetPosition != target.position)
+        {
+            PlaySound(sounds.BattleCry());
+            lastTargetPosition = target.position;
+        }
 
         var toTarget = Vector3.Scale((target.position - transform.position), Y_MASK);
         if (toTarget.magnitude < 1f) return;
@@ -62,5 +76,17 @@ public class Soldier : MonoBehaviour
         Destroy(GetComponent<Collider>());
 
         OnDie(indexInSquad);
+    }
+
+    void PlaySound(AudioClip sound, bool vocal = false)
+    {
+        if (indexInSquad != 0 && Random.Range(0, 10) != 0) return;
+
+        if (vocal)
+            audio.pitch = Random.Range(1 - AUDIO_PITCH_HALF_RANGE, 1 + AUDIO_PITCH_HALF_RANGE);
+        else
+            audio.pitch = 1f;
+
+        audio.PlayOneShot(sound);
     }
 }

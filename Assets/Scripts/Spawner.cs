@@ -90,6 +90,11 @@ public class Spawner : MonoBehaviour
         {
             DebugKill();
         }
+
+        if (Input.GetKeyDown(KeyCode.F))
+        {
+            DebugMoveTarget();
+        }
     }
 
     void SetupMarkers(int teamID)
@@ -137,6 +142,15 @@ public class Spawner : MonoBehaviour
         if (soldier == null) return;
 
         soldier.Die();
+    }
+
+    void DebugMoveTarget()
+    {
+        RaycastHit hit;
+        var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        if (!Physics.Raycast(ray, out hit)) return;
+
+        GameObject.Find("Debug Target").transform.position = hit.point;
     }
 
     void DebugSpawn(int teamID)
