@@ -25,7 +25,7 @@ public class Timer : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.W))
+        if (Input.GetKeyDown(KeyCode.Q))
         {
             if (activeSequence != null) StopCoroutine(activeSequence);
             activeSequence = StartCoroutine(StartSequence());
@@ -34,7 +34,6 @@ public class Timer : MonoBehaviour
 
     IEnumerator StartSequence()
     {
-        Debug.Log("Playing sequence.");
         musicSource.Play();
         var timer = TIME_PERIOD;
         while (timer > 0f)
