@@ -13,7 +13,7 @@ public class Billboard : MonoBehaviour
 
     void Update()
     {
-        float yRotation = camera.rotation.eulerAngles.y + (flipped ? 180f : 0f);
+        var yRotation = camera.rotation.eulerAngles.y + (flipped ? 180f : 0f);
         transform.rotation = Quaternion.Euler(0f, yRotation, 0f);
     }
 }

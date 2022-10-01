@@ -5,6 +5,7 @@ public struct Team
 {
     public int id;
     public Color color;
+    public Color deadColor;
 }
 
 [CreateAssetMenu(fileName = "BattleSettings", menuName = "ScriptableObjects/BattleSettings", order = 1)]

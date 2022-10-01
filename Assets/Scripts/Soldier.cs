@@ -18,26 +18,26 @@ public class Soldier : MonoBehaviour
 
     public BattleSettings settings;
     public Timer timer;
+    public Squad squad;
 
-    public int teamID;
-    public int squadID;
     public int indexInSquad;
+
+    public bool Alive { get; private set; } = true;
+    public event System.Action<int> OnDie;
 
     new Transform camera;
     void Start()
     {
         camera = Camera.main.transform;
 
-        name = $"Soldier({teamID}:{squadID}:{indexInSquad})";
+        name = $"Soldier({squad.teamID}:{squad.squadID}:{indexInSquad})";
 
-        var material = renderer.material;
-        material.color = settings.teams[teamID].color;
+        renderer.material.color = settings.teams[squad.teamID].color;
     }
 
     void FixedUpdate()
     {
-        if (!timer.Active) return;
-        else if (!target) return;
+        if (!timer.Active || !target || !Alive) return;
 
         var toTarget = Vector3.Scale((target.position - transform.position), Y_MASK);
         if (toTarget.magnitude < 1f) return;
@@ -47,5 +47,20 @@ public class Soldier : MonoBehaviour
 
         var deltaVelocity = Mathf.Clamp(SPEED - rigidbody.velocity.magnitude, 0f, SPEED);
         rigidbody.AddForce(toTarget * deltaVelocity, ForceMode.VelocityChange);
+    }
+
+    public void Die()
+    {
+        Alive = false;
+
+        name = "(D) " + name;
+
+        var color = renderer.material.color;
+        renderer.material.color = settings.teams[squad.teamID].deadColor;
+
+        Destroy(GetComponent<Rigidbody>());
+        Destroy(GetComponent<Collider>());
+
+        OnDie(indexInSquad);
     }
 }
