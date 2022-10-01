@@ -18,6 +18,17 @@ public class Timer : MonoBehaviour
 
     Coroutine activeSequence;
 
+    bool active = false;
+    public bool Active
+    {
+        get { return active; }
+        private set
+        {
+            active = value;
+            Time.timeScale = value ? 1f : 0f;
+        }
+    }
+
     void Start()
     {
         timerTextTransform = timerText.GetComponent<RectTransform>();
@@ -34,6 +45,8 @@ public class Timer : MonoBehaviour
 
     IEnumerator StartSequence()
     {
+        Active = true;
+
         musicSource.Play();
         var timer = TIME_PERIOD;
         while (timer > 0f)
@@ -51,6 +64,7 @@ public class Timer : MonoBehaviour
 
             timerText.text = Mathf.Ceil(fraction * TIME_PERIOD).ToString();
         }
-        
+
+        Active = false;
     }
 }

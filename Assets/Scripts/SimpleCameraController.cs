@@ -120,7 +120,7 @@ namespace UnityTemplateProjects
             // Rotation
             if (IsCameraRotationAllowed())
             {
-                var mouseMovement = GetInputLookRotation() * Time.deltaTime * 10;
+                var mouseMovement = GetInputLookRotation() * Time.unscaledDeltaTime * 10;
 
                 var mouseSensitivityFactor = mouseSensitivityCurve.Evaluate(mouseMovement.magnitude);
 
@@ -130,7 +130,7 @@ namespace UnityTemplateProjects
 
             // Translation
             var vertical = transform.worldToLocalMatrix;
-            var translation = GetInputTranslationDirection() * CAMERA_SPEED * Time.deltaTime;
+            var translation = GetInputTranslationDirection() * CAMERA_SPEED * Time.unscaledDeltaTime;
 
             // Speed up movement when shift key held
             if (IsBoostPressed())
@@ -142,8 +142,8 @@ namespace UnityTemplateProjects
 
             // Framerate-independent interpolation
             // Calculate the lerp amount, such that we get 99% of the way to our target in the specified time
-            var positionLerpPct = 1f - Mathf.Exp((Mathf.Log(1f - 0.99f) / positionLerpTime) * Time.deltaTime);
-            var rotationLerpPct = 1f - Mathf.Exp((Mathf.Log(1f - 0.99f) / rotationLerpTime) * Time.deltaTime);
+            var positionLerpPct = 1f - Mathf.Exp((Mathf.Log(1f - 0.99f) / positionLerpTime) * Time.unscaledDeltaTime);
+            var rotationLerpPct = 1f - Mathf.Exp((Mathf.Log(1f - 0.99f) / rotationLerpTime) * Time.unscaledDeltaTime);
             m_InterpolatingCameraState.LerpTowards(m_TargetCameraState, positionLerpPct, rotationLerpPct);
 
             m_InterpolatingCameraState.UpdateTransform(transform);

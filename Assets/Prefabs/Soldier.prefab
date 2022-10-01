@@ -177,3 +177,6 @@ MonoBehaviour:
   target: {fileID: 0}
   rigidbody: {fileID: 6286920993830998287}
   billboard: {fileID: 6286920993644197580}
+  renderer: {fileID: 6286920993644197581}
+  settings: {fileID: 11400000, guid: c317ea89b65154942af4f3f27f32868c, type: 2}
+  teamID: 0
