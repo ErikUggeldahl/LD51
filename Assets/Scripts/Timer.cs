@@ -7,6 +7,12 @@ public class Timer : MonoBehaviour
     const float TIME_PERIOD = 10f;
 
     [SerializeField]
+    AudioClip tech;
+
+    [SerializeField]
+    AudioClip classical;
+
+    [SerializeField]
     AudioSource musicSource;
 
     [SerializeField]
@@ -19,6 +25,7 @@ public class Timer : MonoBehaviour
     Coroutine activeSequence;
 
     bool active = false;
+    bool forever = false;
     public bool Active
     {
         get { return active; }
@@ -29,6 +36,11 @@ public class Timer : MonoBehaviour
         }
     }
 
+    public void SetForever(bool forever)
+    {
+        this.forever = forever;
+    }
+
     void Start()
     {
         timerTextTransform = timerText.GetComponent<RectTransform>();
@@ -36,10 +48,28 @@ public class Timer : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Q))
+        if (Input.GetKeyDown(KeyCode.Q) || (forever && !Active))
         {
             if (activeSequence != null) StopCoroutine(activeSequence);
             activeSequence = StartCoroutine(StartSequence());
+        }
+    }
+
+    public void SetClassical(bool isClassical)
+    {
+        var position = musicSource.timeSamples;
+        var playing = musicSource.isPlaying;
+        if (playing)
+        {
+            musicSource.timeSamples = position;
+            musicSource.Stop();
+        }
+
+        musicSource.clip = isClassical ? classical : tech;
+
+        if (playing)
+        {
+            musicSource.Play();
         }
     }
 
@@ -47,6 +77,7 @@ public class Timer : MonoBehaviour
     {
         Active = true;
 
+        musicSource.timeSamples = 0;
         musicSource.Play();
         var timer = TIME_PERIOD;
         while (timer > 0f)

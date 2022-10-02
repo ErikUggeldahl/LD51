@@ -71,6 +71,7 @@ public class Soldier : MonoBehaviour
 
     public event System.Action<int> OnDie;
 
+    Vector3 lastNavigatePosition;
     Soldier enemyTarget;
 
     new Transform camera;
@@ -126,6 +127,11 @@ public class Soldier : MonoBehaviour
         {
             Debug.LogWarning("Trying to navigate without agent enabled.");
             return;
+        }
+
+        if (squad.navigationTarget.position != lastNavigatePosition)
+        {
+            agent.destination = squad.navigationTarget.position;
         }
 
         var toDestination = Vector3.Scale(agent.steeringTarget - transform.position, Y_MASK);
@@ -269,6 +275,7 @@ public class Soldier : MonoBehaviour
 
         agent.enabled = true;
         agent.destination = squad.navigationTarget.position;
+        lastNavigatePosition = squad.navigationTarget.position;
 
         SetSprite(sprites.run);
         PlaySound(sounds.BattleCry());

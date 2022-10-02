@@ -18,15 +18,14 @@ public class Squad : MonoBehaviour
     int nextSoldierIndex = 0;
     Soldier[] soldiers;
 
-    public Squad Create(Soldier.Kind kind, int size, int teamID, int squadID)
+    public Squad Create(Soldier.Kind kind, int size, int teamID, int squadID, Transform navigationTarget)
     {
-        navigationTarget = GameObject.Find("Debug Target").transform;
-
         soldiers = new Soldier[size];
 
         this.kind = kind;
         this.teamID = teamID;
         this.squadID = squadID;
+        this.navigationTarget = navigationTarget;
 
         return this;
     }
@@ -42,6 +41,7 @@ public class Squad : MonoBehaviour
         if (nextSoldierIndex == 0)
         {
             Leader = soldier;
+            Leader.gameObject.layer = LayerMask.NameToLayer("Leader");
             targeter = soldier.EnableTargeter();
             targeter.OnTarget += OnTargetAcquired;
 
@@ -78,6 +78,7 @@ public class Squad : MonoBehaviour
             targeter.transform.parent = firstAlive.transform;
             targeter.transform.localPosition = Vector3.zero;
             Leader = firstAlive;
+            Leader.gameObject.layer = LayerMask.NameToLayer("Leader");
         }
     }
 

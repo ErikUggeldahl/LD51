@@ -21,6 +21,18 @@ public class Spawner : MonoBehaviour
     GameObject soldierPre;
 
     [SerializeField]
+    GameObject brickPre;
+
+    [SerializeField]
+    Transform brickParent;
+
+    [SerializeField]
+    Transform holoBrick;
+
+    [SerializeField]
+    Transform[] targetLocations;
+
+    [SerializeField]
     SoldierSprites soldierSprites;
 
     [SerializeField]
@@ -48,6 +60,8 @@ public class Spawner : MonoBehaviour
     int count;
     int rows;
     bool spawning = false;
+    bool spawningTarget = false;
+    bool spawningBrick = false;
 
     int[] squadNextIDs;
     Transform[] teamParents;
@@ -95,6 +109,8 @@ public class Spawner : MonoBehaviour
             marker.SetActive(false);
             marker.transform.parent = markerParent;
         }
+
+        holoBrick.parent = markerParent.GetChild(0);
     }
 
     public void OnSpawnClicked()
@@ -102,12 +118,29 @@ public class Spawner : MonoBehaviour
         if (spawning) return;
 
         team = int.Parse(teamToggles.ActiveToggles().First().name.Last().ToString());
-        kind = kindToggles.ActiveToggles().First().name.Contains("Soldier") ? Soldier.Kind.Soldier : Soldier.Kind.Archer;
-        count = Mathf.Clamp(int.Parse(countInput.text), 1, MAX_SPAWN);
-        rows = Mathf.Clamp(int.Parse(rowsInput.text), 1, MAX_SPAWN);
 
-        countInput.text = count.ToString();
-        rowsInput.text = rows.ToString();
+        if (kindToggles.ActiveToggles().First().name.Contains("Target"))
+        {
+            count = 1;
+            rows = 1;
+            spawningTarget = true;
+        }
+        else if (kindToggles.ActiveToggles().First().name.Contains("Brick"))
+        {
+            count = 1;
+            rows = 1;
+            spawningBrick = true;
+            holoBrick.gameObject.SetActive(true);
+        }
+        else
+        {
+            kind = kindToggles.ActiveToggles().First().name.Contains("Soldier") ? Soldier.Kind.Soldier : Soldier.Kind.Archer;
+            count = Mathf.Clamp(int.Parse(countInput.text), 1, MAX_SPAWN);
+            rows = Mathf.Clamp(int.Parse(rowsInput.text), 1, MAX_SPAWN);
+
+            countInput.text = count.ToString();
+            rowsInput.text = rows.ToString();
+        }
 
         SetupMarkers();
         spawning = true;
@@ -118,12 +151,32 @@ public class Spawner : MonoBehaviour
         if (spawning)
         {
             PositionMarkers();
+            //if (spawningBrick)
+            //{
+            //    holoBrick.posi
+            //}
 
             if (Input.GetMouseButtonDown(0))
             {
                 spawning = false;
                 TearDownMarkers();
-                Spawn(kind, team, count);
+
+                if (spawningTarget)
+                {
+                    spawningTarget = false;
+                    targetLocations[team].position = spawnPositions[0];
+                }
+                else if (spawningBrick)
+                {
+                    spawningBrick = false;
+                    holoBrick.gameObject.SetActive(false);
+                    SpawnBrick();
+                    
+                }
+                else
+                {
+                    Spawn(kind, team, count);
+                }
             }
         }
 
@@ -153,11 +206,6 @@ public class Spawner : MonoBehaviour
         if (Input.GetKey(KeyCode.Z))
         {
             DebugKill();
-        }
-
-        if (Input.GetKeyDown(KeyCode.F))
-        {
-            DebugMoveTarget();
         }
     }
 
@@ -208,15 +256,6 @@ public class Spawner : MonoBehaviour
         soldier.EnterDeath();
     }
 
-    void DebugMoveTarget()
-    {
-        RaycastHit hit;
-        var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-        if (!Physics.Raycast(ray, out hit, RAY_DISTANCE)) return;
-
-        GameObject.Find("Debug Target").transform.position = hit.point;
-    }
-
     void DebugSpawn(Soldier.Kind kind, int teamID)
     {
         Spawn(kind, teamID, 20);
@@ -251,7 +290,7 @@ public class Spawner : MonoBehaviour
         var squadParent = new GameObject($"Squad {squadID}", typeof(Squad)).transform;
         squadParent.parent = teamParents[teamID];
 
-        var squad = squadParent.GetComponent<Squad>().Create(kind, count, teamID, squadID);
+        var squad = squadParent.GetComponent<Squad>().Create(kind, count, teamID, squadID, targetLocations[teamID]);
 
         for (int i = 0; i < count; i++)
         {
@@ -264,5 +303,11 @@ public class Spawner : MonoBehaviour
         }
 
         squadNextIDs[teamID]++;
+    }
+
+    void SpawnBrick()
+    {
+        var brickGO = Instantiate(brickPre, spawnPositions[0], Quaternion.identity, brickParent);
+        brickGO.GetComponent<TeamColor>().team = team;
     }
 }

@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class Arrow : MonoBehaviour
 {
-    const float DESTROY_DELAY = 60;
+    const float DESTROY_DELAY = 15;
     const int ARROW_KILL_CHANCE = 3;
 
     public Vector3 desiredPosition;
