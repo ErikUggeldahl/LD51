@@ -38,14 +38,11 @@ public class Squad : MonoBehaviour
             return;
         }
 
-        Debug.Log($"Checking if transfer necessary with alive count: {aliveCount} and targeter?: {targeter != null}");
-
         if (targeter.transform.parent.GetComponent<Soldier>().indexInSquad == index)
         {
             Soldier firstAlive = soldiers.Where((soldier) => soldier.Alive).First();
             targeter.transform.parent = firstAlive.transform;
             targeter.transform.localPosition = Vector3.zero;
-            Debug.Log($"Transferred targeter to {firstAlive.indexInSquad}");
         }
     }
 

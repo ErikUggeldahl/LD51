@@ -174,7 +174,7 @@ public class Spawner : MonoBehaviour
         {
             var col = i % cols;
             if (col == 0) row++;
-            positions[i] = origin + camera.right * col * SPACING + Vector3.Scale(camera.forward, Y_MASK) * row * SPACING;
+            positions[i] = origin + camera.right * col * SPACING - Vector3.Scale(camera.forward, Y_MASK) * row * SPACING;
         }
     }
 

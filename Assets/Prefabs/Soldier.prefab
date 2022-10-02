@@ -109,6 +109,7 @@ GameObject:
   - component: {fileID: 6286920993830998273}
   - component: {fileID: 6286920993830998287}
   - component: {fileID: 2158934599627703766}
+  - component: {fileID: 4493097170152613298}
   - component: {fileID: 6286920993830998284}
   m_Layer: 6
   m_Name: Soldier
@@ -161,7 +162,7 @@ Rigidbody:
   m_UseGravity: 1
   m_IsKinematic: 0
   m_Interpolate: 0
-  m_Constraints: 80
+  m_Constraints: 112
   m_CollisionDetection: 0
 --- !u!82 &2158934599627703766
 AudioSource:
@@ -259,6 +260,28 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!195 &4493097170152613298
+NavMeshAgent:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6286920993830998272}
+  m_Enabled: 1
+  m_AgentTypeID: 0
+  m_Radius: 0.5
+  m_Speed: 0
+  m_Acceleration: 0
+  avoidancePriority: 50
+  m_AngularSpeed: 0
+  m_StoppingDistance: 0
+  m_AutoTraverseOffMeshLink: 1
+  m_AutoBraking: 1
+  m_AutoRepath: 1
+  m_Height: 1.75
+  m_BaseOffset: 0
+  m_WalkableMask: 4294967295
+  m_ObstacleAvoidanceType: 1
 --- !u!114 &6286920993830998284
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -274,6 +297,7 @@ MonoBehaviour:
   sprites: {fileID: 11400000, guid: a48c5c30f6c2e814583cd6b2403586c5, type: 2}
   sounds: {fileID: 11400000, guid: c62d1508beb1d3a48a0a9c98e827c2fd, type: 2}
   rigidbody: {fileID: 6286920993830998287}
+  agent: {fileID: 4493097170152613298}
   audio: {fileID: 2158934599627703766}
   billboard: {fileID: 6286920993644197580}
   renderer: {fileID: 6286920993644197581}

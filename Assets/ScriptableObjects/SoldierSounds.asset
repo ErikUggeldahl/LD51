@@ -13,5 +13,5 @@ MonoBehaviour:
   m_Name: SoldierSounds
   m_EditorClassIdentifier: 
   battleCries:
-  - {fileID: 8300000, guid: 7114d5ea5fa5f2f4dac2e2cf2010c340, type: 3}
-  - {fileID: 8300000, guid: 79a7590eadb9c1745adaa9413a5dd5fc, type: 3}
+  - {fileID: 8300000, guid: eab3d1fb473de694d9c011ae101b8adb, type: 3}
+  - {fileID: 8300000, guid: 1e1832830de43f24f873b515a5ad4a56, type: 3}
