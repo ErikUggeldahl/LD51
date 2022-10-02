@@ -10,14 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f42be02890eb75740819c37a0e18f40d, type: 3}
-  m_Name: SoldierSprites
+  m_Name: ArcherSprites
   m_EditorClassIdentifier: 
   stand:
-  - {fileID: 2800000, guid: 1a998b1cc23aabb418237b2036af733d, type: 3}
+  - {fileID: 2800000, guid: 23b6889456f8a6a4da574651937bb005, type: 3}
   run:
-  - {fileID: 2800000, guid: 1a998b1cc23aabb418237b2036af733d, type: 3}
+  - {fileID: 2800000, guid: 23b6889456f8a6a4da574651937bb005, type: 3}
   attack:
-  - {fileID: 2800000, guid: 6dba9506c4e81b245bbf5d23f0ba5dfe, type: 3}
-  - {fileID: 2800000, guid: 28e49b86dd81a414195414a7ec4590cf, type: 3}
+  - {fileID: 2800000, guid: e343e91c8af84164e98ab94055ae5991, type: 3}
   die:
   - {fileID: 2800000, guid: ce561218c7cf61a44a3e34473037464e, type: 3}

@@ -14,7 +14,7 @@ public class Targeter : MonoBehaviour
             Debug.LogWarning("Targeter triggered with a non-soldier entity.");
             return;
         }
-        if (soldier.State == Soldier.UnitState.Dead) Debug.LogWarning("Targeting a dead soldier.");
+        if (soldier.state == Soldier.State.Dead) Debug.LogWarning("Targeting a dead soldier.");
 
         if (soldier.squad.teamID == teamID) return;
 

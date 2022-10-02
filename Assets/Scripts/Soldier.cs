@@ -4,24 +4,32 @@ using UnityEngine.AI;
 
 public class Soldier : MonoBehaviour
 {
-    public enum UnitState
+    public enum State
     {
         Navigating,
         Following,
         Defending,
         Attacking,
+        Shooting,
         Dead,
+    }
+
+    public enum Kind
+    {
+        Soldier,
+        Archer,
     }
 
     const float SPEED = 2f;
     const float STOPPING_DISTANCE = 0.01f;
     const float ATTACK_DISTANCE = 2f;
+    public const float ARCHER_TARGET_RANGE = 50;
+    const float SHOOTING_VARIANCE = 1.5f;
+    const float SHOOTING_VELOCITY_ADJUST_FACTOR = 3f;
     const float AUDIO_PITCH_HALF_RANGE = 0.2f;
     const int AUDIO_SKIP_RANGE = 10;
     static Vector3 Y_MASK = new Vector3(1f, 0f, 1f);
-
-    [SerializeField]
-    SoldierSprites sprites;
+    static Vector3 ARROW_SPAWN_OFFSET = new Vector3(0f, 2f, 0f);
 
     [SerializeField]
     SoldierSounds sounds;
@@ -44,20 +52,30 @@ public class Soldier : MonoBehaviour
     [SerializeField]
     GameObject targeterPre;
 
+    [SerializeField]
+    GameObject arrowPre;
+
     public BattleSettings settings;
     public Timer timer;
     public Squad squad;
 
     public int indexInSquad;
 
-    public UnitState initialState = UnitState.Defending;
-    public UnitState State { get; private set; }
+    public Kind kind;
+    public SoldierSprites sprites;
+
+    public State initialState = State.Defending;
+    public State state { get; private set; }
 
     public event System.Action<int> OnDie;
 
     Soldier enemyTarget;
 
     new Transform camera;
+
+    const float SHOOT_COOLDOWN = 5f;
+    float shootCooldown = 0f;
+
     const float VOCAL_COOLDOWN = 5f;
     const float VOCAL_COOLDOWN_RANGE = 3f;
     const float VOCAL_DELAY_RANGE = 0.5f;
@@ -67,7 +85,7 @@ public class Soldier : MonoBehaviour
     {
         camera = Camera.main.transform;
 
-        name = $"Soldier({squad.teamID}:{squad.squadID}:{indexInSquad})";
+        name = $"{kind.ToString()} ({squad.teamID}:{squad.squadID}:{indexInSquad})";
 
         renderer.material.color = settings.teams[squad.teamID].color;
 
@@ -77,20 +95,21 @@ public class Soldier : MonoBehaviour
 
         switch (initialState)
         {
-            case UnitState.Navigating: EnterNavigating(); break;
-            case UnitState.Following: EnterFollowing(); break;
-            case UnitState.Defending: break;
+            case State.Navigating: EnterNavigating(); break;
+            case State.Following: EnterFollowing(); break;
+            case State.Defending: EnterDefending(); break;
         }
     }
 
     void FixedUpdate()
     {
-        if (!timer.Active || State == UnitState.Dead) return;
-        switch (State)
+        if (!timer.Active || state == State.Dead) return;
+        switch (state)
         {
-            case UnitState.Navigating: Navigate(); break;
-            case UnitState.Following: Follow(); break;
-            case UnitState.Attacking: Attack(); break;
+            case State.Navigating: Navigate(); break;
+            case State.Following: Follow(); break;
+            case State.Attacking: Attack(); break;
+            case State.Shooting: Shoot(); break;
         }
     }
 
@@ -117,7 +136,7 @@ public class Soldier : MonoBehaviour
             return;
         }
 
-        if (squad.Leader.State == UnitState.Dead)
+        if (squad.Leader.state == State.Dead)
         {
             Debug.LogWarning("Trying to follow a dead leader.");
             return;
@@ -130,9 +149,14 @@ public class Soldier : MonoBehaviour
         Move(toLeader);
     }
 
-    void Move(Vector3 direction)
+    void Face(Vector3 direction)
     {
         billboard.flipped = camera.InverseTransformDirection(direction).x > 0f;
+    }
+
+    void Move(Vector3 direction)
+    {
+        Face(direction);
 
         var deltaVelocity = Mathf.Clamp(SPEED - rigidbody.velocity.magnitude, 0f, SPEED);
         rigidbody.AddForce(direction * deltaVelocity, ForceMode.Impulse);
@@ -142,6 +166,12 @@ public class Soldier : MonoBehaviour
     void Attack()
     {
         if (!enemyTarget)
+        {
+            Debug.LogWarning("Trying to attack but enemy target is null.");
+            return;
+        }
+
+        if (enemyTarget.state == State.Dead)
         {
             Debug.LogWarning("Trying to attack but enemy target is dead.");
             return;
@@ -158,21 +188,61 @@ public class Soldier : MonoBehaviour
         }
     }
 
-    bool SwitchStates(UnitState newState)
+    void Shoot()
     {
-        if (State == UnitState.Dead)
+        if (!enemyTarget)
+        {
+            Debug.LogWarning("Trying to shoot but enemy target is null.");
+            return;
+        }
+
+        if (enemyTarget.state == State.Dead)
+        {
+            Debug.LogWarning("Trying to shoot but enemy target is dead.");
+            return;
+        }
+
+        var toEnemy = Vector3.Scale(enemyTarget.transform.position - transform.position, Y_MASK);
+        if (toEnemy.magnitude > ARCHER_TARGET_RANGE)
+        {
+            EnterDefending();
+        }
+
+        if (shootCooldown > 0)
+        {
+            shootCooldown -= Time.deltaTime;
+            return;
+        }
+        shootCooldown = SHOOT_COOLDOWN;
+
+        toEnemy.Normalize();
+
+        var arrowGO = Instantiate(arrowPre, transform.position + toEnemy + ARROW_SPAWN_OFFSET, Quaternion.identity);
+        var arrow = arrowGO.GetComponent<Arrow>();
+
+        var velocityAdjust = enemyTarget.rigidbody.velocity * SHOOTING_VELOCITY_ADJUST_FACTOR;
+        var variance = new Vector3(Random.Range(-SHOOTING_VARIANCE, SHOOTING_VARIANCE), 0f, Random.Range(-SHOOTING_VARIANCE, SHOOTING_VARIANCE));
+        arrow.desiredPosition = enemyTarget.transform.position + velocityAdjust + variance;
+
+        arrow.color = settings.teams[squad.teamID].color;
+    }
+
+    bool SwitchStates(State newState)
+    {
+        if (state == State.Dead)
         {
             Debug.LogWarning("Trying to switch states from death.");
             return false;
         }
 
-        switch (State)
+        switch (state)
         {
-            case UnitState.Navigating: ExitNavigating(); break;
-            case UnitState.Attacking: ExitAttacking(); break;
+            case State.Navigating: ExitNavigating(); break;
+            case State.Attacking: ExitAttacking(); break;
+            case State.Shooting: ExitShooting(); break;
         }
 
-        State = newState;
+        state = newState;
         return true;
     }
 
@@ -184,10 +254,13 @@ public class Soldier : MonoBehaviour
             return;
         }
 
-        if (!SwitchStates(UnitState.Navigating)) return;
+        if (!SwitchStates(State.Navigating)) return;
 
         agent.enabled = true;
         agent.destination = squad.navigationTarget.position;
+
+        SetSprite(sprites.run);
+        PlaySound(sounds.BattleCry());
     }
 
     void ExitNavigating()
@@ -203,16 +276,23 @@ public class Soldier : MonoBehaviour
             return;
         }
 
-        if (squad.Leader.State == UnitState.Dead)
+        if (squad.Leader.state == State.Dead)
         {
             Debug.LogWarning("Trying to switch to Following, but the leader is dead.");
             return;
         }
 
-        if (!SwitchStates(UnitState.Following)) return;
+        if (!SwitchStates(State.Following)) return;
 
         SetSprite(sprites.run);
         PlaySound(sounds.BattleCry());
+    }
+
+    public void EnterDefending()
+    {
+        if (!SwitchStates(State.Defending)) return;
+
+        SetSprite(sprites.stand);
     }
 
     public void EnterAttacking(Soldier enemy)
@@ -223,18 +303,18 @@ public class Soldier : MonoBehaviour
             return;
         }
 
-        if (enemy.State == UnitState.Dead)
+        if (enemy.state == State.Dead)
         {
             Debug.LogWarning("Trying to switch to Attacking, but enemy is dead.");
             return;
         }
 
-        if (!SwitchStates(UnitState.Attacking)) return;
+        if (!SwitchStates(State.Attacking)) return;
 
         enemyTarget = enemy;
         enemyTarget.OnDie += OnEnemyDeath;
 
-        SetSprite(sprites.Attack());
+        SetSprite(sprites.attack);
         PlaySound(sounds.BattleCry());
     }
 
@@ -244,9 +324,43 @@ public class Soldier : MonoBehaviour
         enemyTarget = null;
     }
 
+    public void EnterShooting(Soldier enemy)
+    {
+        if (kind == Kind.Soldier)
+        {
+            Debug.LogWarning("Trying to switch to Shooting as a Soldier.");
+            return;
+        }
+
+        if (!enemy)
+        {
+            Debug.LogWarning("Trying to switch to Shooting, but enemy is null.");
+            return;
+        }
+
+        if (enemy.state == State.Dead)
+        {
+            Debug.LogWarning("Trying to switch to Shooting, but enemy is dead.");
+            return;
+        }
+
+        if (!SwitchStates(State.Shooting)) return;
+
+        enemyTarget = enemy;
+        enemyTarget.OnDie += OnEnemyDeath;
+
+        SetSprite(sprites.attack);
+    }
+
+    void ExitShooting()
+    {
+        enemyTarget.OnDie -= OnEnemyDeath;
+        enemyTarget = null;
+    }
+
     public void EnterDeath()
     {
-        if (!SwitchStates(UnitState.Dead)) return;
+        if (!SwitchStates(State.Dead)) return;
 
         name = "(D) " + name;
         gameObject.layer = 0;
@@ -277,7 +391,7 @@ public class Soldier : MonoBehaviour
             }
         }
 
-        if (enemyTarget == null || State == UnitState.Dead) return;
+        if (enemyTarget == null || state == State.Dead) return;
 
         Gizmos.color = squad.teamID == 0 ? Color.red : Color.blue;
         Gizmos.DrawLine(transform.position, enemyTarget.transform.position);
@@ -288,14 +402,25 @@ public class Soldier : MonoBehaviour
         Soldier soldier = collision.collider.GetComponent<Soldier>();
         if (soldier == null || soldier.squad.teamID == squad.teamID) return;
 
-        EnterAttacking(soldier);
+        if (state != State.Dead && soldier.state != State.Dead)
+        {
+            EnterAttacking(soldier);
+        }
     }
 
     void OnEnemyDeath(int _)
     {
-        if (squad.EnemyTarget && squad.EnemyTarget.State != UnitState.Dead)
+        if (squad.EnemyTarget && squad.EnemyTarget.state != State.Dead)
         {
-            EnterAttacking(squad.EnemyTarget);
+            switch (kind)
+            {
+                case Kind.Soldier: EnterAttacking(squad.EnemyTarget); break;
+                case Kind.Archer: EnterShooting(squad.EnemyTarget); break;
+            }   
+        }
+        else if (kind == Kind.Archer)
+        {
+            EnterDefending();
         }
         else if (squad.Leader == this)
         {
@@ -317,9 +442,9 @@ public class Soldier : MonoBehaviour
         return targeter;
     }
 
-    void SetSprite(Texture sprite)
+    void SetSprite(Texture[] sprite)
     {
-        renderer.material.mainTexture = sprite;
+        renderer.material.mainTexture = SoldierSprites.Get(sprite);
     }
 
     void PlaySound(AudioClip sound, bool vocal = false)

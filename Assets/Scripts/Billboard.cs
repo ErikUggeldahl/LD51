@@ -2,6 +2,8 @@ using UnityEngine;
 
 public class Billboard : MonoBehaviour
 {
+    static Vector2 FLIPPED = new Vector2(-1, 1);
+
     public bool flipped = false;
 
     new Transform camera;
@@ -13,7 +15,8 @@ public class Billboard : MonoBehaviour
 
     void Update()
     {
-        var yRotation = camera.rotation.eulerAngles.y + (flipped ? 180f : 0f);
+        var yRotation = camera.rotation.eulerAngles.y;
         transform.rotation = Quaternion.Euler(0f, yRotation, 0f);
+        GetComponent<Renderer>().material.mainTextureScale = flipped ? FLIPPED : Vector2.one;
     }
 }

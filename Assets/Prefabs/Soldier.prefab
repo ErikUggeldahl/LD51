@@ -294,7 +294,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 54b284c021a73ef499f19031aa3b25b4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sprites: {fileID: 11400000, guid: a48c5c30f6c2e814583cd6b2403586c5, type: 2}
   sounds: {fileID: 11400000, guid: c62d1508beb1d3a48a0a9c98e827c2fd, type: 2}
   rigidbody: {fileID: 6286920993830998287}
   agent: {fileID: 4493097170152613298}
@@ -303,8 +302,12 @@ MonoBehaviour:
   renderer: {fileID: 6286920993644197581}
   targeterPre: {fileID: 9010790804751149018, guid: 567b818146b1eba4ea44bfc26a9e4700,
     type: 3}
+  arrowPre: {fileID: 2190783046365694455, guid: a19f025d8b1c83f41aad25aeb2f36bf7,
+    type: 3}
   settings: {fileID: 11400000, guid: c317ea89b65154942af4f3f27f32868c, type: 2}
   timer: {fileID: 0}
   squad: {fileID: 0}
   indexInSquad: 0
-  target: {fileID: 0}
+  kind: 0
+  sprites: {fileID: 11400000, guid: a48c5c30f6c2e814583cd6b2403586c5, type: 2}
+  initialState: 2

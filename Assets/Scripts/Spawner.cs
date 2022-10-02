@@ -22,6 +22,14 @@ public class Spawner : MonoBehaviour
     [SerializeField]
     GameObject soldierPre;
 
+    [SerializeField]
+    SoldierSprites soldierSprites;
+
+    [SerializeField]
+    SoldierSprites archerSprites;
+
+    public static Transform arrowParent;
+
     new Transform camera;
 
     int[] squadNextIDs;
@@ -36,6 +44,7 @@ public class Spawner : MonoBehaviour
 
     void Start()
     {
+        arrowParent = GameObject.Find("Arrows").transform;
         camera = Camera.main.transform;
         squadNextIDs = new int[settings.teams.Length];
 
@@ -75,22 +84,24 @@ public class Spawner : MonoBehaviour
     {
         var setup0 = Input.GetKeyDown(KeyCode.E);
         var setup1 = Input.GetKeyDown(KeyCode.R);
-        if (setup0 || setup1)
+        var setup2 = Input.GetKeyDown(KeyCode.T);
+        if (setup0 || setup1 || setup2)
         {
-            SetupMarkers(setup0 ? 0 : 1);
+            SetupMarkers(setup0 || setup2 ? 0 : 1);
         }
 
-        if (Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.R))
+        if (Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.R) || Input.GetKey(KeyCode.T))
         {
             PositionMarkers();
         }
 
         var spawn0 = Input.GetKeyUp(KeyCode.E);
         var spawn1 = Input.GetKeyUp(KeyCode.R);
-        if (spawn0 || spawn1)
+        var spawn2 = Input.GetKeyUp(KeyCode.T);
+        if (spawn0 || spawn1 || spawn2)
         {
             TearDownMarkers();
-            DebugSpawn(spawn0 ? 0 : 1);
+            DebugSpawn(spawn2 ? Soldier.Kind.Archer : Soldier.Kind.Soldier, spawn0 || spawn2 ? 0 : 1);
         }
 
         if (Input.GetKey(KeyCode.Z))
@@ -160,9 +171,9 @@ public class Spawner : MonoBehaviour
         GameObject.Find("Debug Target").transform.position = hit.point;
     }
 
-    void DebugSpawn(int teamID)
+    void DebugSpawn(Soldier.Kind kind, int teamID)
     {
-        Spawn(teamID, 20, 4);
+        Spawn(kind, teamID, 20, 4);
     }
 
     void CalculateSpawnPositions(in Vector3[] positions, Vector3 origin, int count, int rows)
@@ -178,19 +189,31 @@ public class Spawner : MonoBehaviour
         }
     }
 
-    void Spawn(int teamID, int count, int rows)
+    SoldierSprites KindToSprites(Soldier.Kind kind)
+    {
+        switch(kind)
+        {
+            case Soldier.Kind.Soldier: return soldierSprites;
+            case Soldier.Kind.Archer: return archerSprites;
+        }
+        return null;
+    }
+
+    void Spawn(Soldier.Kind kind, int teamID, int count, int rows)
     {
         var squadID = squadNextIDs[teamID];
         var squadParent = new GameObject($"Squad {squadID}", typeof(Squad)).transform;
         squadParent.parent = teamParents[teamID];
 
-        var squad = squadParent.GetComponent<Squad>().Create(count, teamID, squadID);
+        var squad = squadParent.GetComponent<Squad>().Create(kind, count, teamID, squadID);
 
         for (int i = 0; i < count; i++)
         {
             var soldierGO = Instantiate(soldierPre, spawnPositions[i], Quaternion.identity, squadParent);
             var soldier = soldierGO.GetComponent<Soldier>();
             soldier.timer = timer;
+            soldier.kind = kind;
+            soldier.sprites = KindToSprites(kind);
             squad.AddSoldier(soldier);
         }
 
