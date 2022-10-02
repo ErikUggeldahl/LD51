@@ -1,8 +1,6 @@
-using System;
-using System.Drawing;
-using Unity.Burst.CompilerServices;
-using Unity.VisualScripting;
+using System.Linq;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class Spawner : MonoBehaviour
 {
@@ -28,9 +26,28 @@ public class Spawner : MonoBehaviour
     [SerializeField]
     SoldierSprites archerSprites;
 
+    [Header("UI Connection")]
+    [SerializeField]
+    ToggleGroup teamToggles;
+
+    [SerializeField]
+    ToggleGroup kindToggles;
+
+    [SerializeField]
+    TMPro.TMP_InputField countInput;
+
+    [SerializeField]
+    TMPro.TMP_InputField rowsInput;
+
     public static Transform arrowParent;
 
     new Transform camera;
+
+    int team;
+    Soldier.Kind kind;
+    int count;
+    int rows;
+    bool spawning = false;
 
     int[] squadNextIDs;
     Transform[] teamParents;
@@ -80,14 +97,43 @@ public class Spawner : MonoBehaviour
         }
     }
 
+    public void OnSpawnClicked()
+    {
+        if (spawning) return;
+
+        team = int.Parse(teamToggles.ActiveToggles().First().name.Last().ToString());
+        kind = kindToggles.ActiveToggles().First().name.Contains("Soldier") ? Soldier.Kind.Soldier : Soldier.Kind.Archer;
+        count = Mathf.Clamp(int.Parse(countInput.text), 1, MAX_SPAWN);
+        rows = Mathf.Clamp(int.Parse(rowsInput.text), 1, MAX_SPAWN);
+
+        countInput.text = count.ToString();
+        rowsInput.text = rows.ToString();
+
+        SetupMarkers();
+        spawning = true;
+    }
+
     void Update()
     {
+        if (spawning)
+        {
+            PositionMarkers();
+
+            if (Input.GetMouseButtonDown(0))
+            {
+                spawning = false;
+                TearDownMarkers();
+                Spawn(kind, team, count);
+            }
+        }
+
+
         var setup0 = Input.GetKeyDown(KeyCode.E);
         var setup1 = Input.GetKeyDown(KeyCode.R);
         var setup2 = Input.GetKeyDown(KeyCode.T);
         if (setup0 || setup1 || setup2)
         {
-            SetupMarkers(setup0 || setup2 ? 0 : 1);
+            SetupMarkers();
         }
 
         if (Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.R) || Input.GetKey(KeyCode.T))
@@ -115,11 +161,11 @@ public class Spawner : MonoBehaviour
         }
     }
 
-    void SetupMarkers(int teamID)
+    void SetupMarkers()
     {
-        var color = settings.teams[teamID].color;
+        var color = settings.teams[team].color;
 
-        for (int i = 0; i < 20; i++)
+        for (int i = 0; i < count; i++)
         {
             var marker = markerParent.GetChild(i);
             marker.gameObject.SetActive(true);
@@ -133,9 +179,9 @@ public class Spawner : MonoBehaviour
         var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         if (!Physics.Raycast(ray, out hit, RAY_DISTANCE, SURFACE_LAYER_MASK)) return;
 
-        CalculateSpawnPositions(spawnPositions, hit.point, 20, 4);
+        CalculateSpawnPositions(spawnPositions, hit.point, count, rows);
 
-        for (var i = 0; i < 20; i++)
+        for (var i = 0; i < count; i++)
         {
             markerParent.GetChild(i).position = spawnPositions[i];
         }
@@ -143,7 +189,7 @@ public class Spawner : MonoBehaviour
 
     void TearDownMarkers()
     {
-        for (int i = 0; i < 20; i++)
+        for (int i = 0; i < count; i++)
         {
             var marker = markerParent.GetChild(i);
             marker.gameObject.SetActive(false);
@@ -173,7 +219,7 @@ public class Spawner : MonoBehaviour
 
     void DebugSpawn(Soldier.Kind kind, int teamID)
     {
-        Spawn(kind, teamID, 20, 4);
+        Spawn(kind, teamID, 20);
     }
 
     void CalculateSpawnPositions(in Vector3[] positions, Vector3 origin, int count, int rows)
@@ -191,7 +237,7 @@ public class Spawner : MonoBehaviour
 
     SoldierSprites KindToSprites(Soldier.Kind kind)
     {
-        switch(kind)
+        switch (kind)
         {
             case Soldier.Kind.Soldier: return soldierSprites;
             case Soldier.Kind.Archer: return archerSprites;
@@ -199,7 +245,7 @@ public class Spawner : MonoBehaviour
         return null;
     }
 
-    void Spawn(Soldier.Kind kind, int teamID, int count, int rows)
+    void Spawn(Soldier.Kind kind, int teamID, int count)
     {
         var squadID = squadNextIDs[teamID];
         var squadParent = new GameObject($"Squad {squadID}", typeof(Squad)).transform;

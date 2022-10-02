@@ -24,7 +24,9 @@ public class Soldier : MonoBehaviour
     const float STOPPING_DISTANCE = 0.01f;
     const float ATTACK_DISTANCE = 2f;
     public const float ARCHER_TARGET_RANGE = 50;
-    const float SHOOTING_VARIANCE = 1.5f;
+    const int SOLDIER_KILL_CHANCE = 60;
+    const int ARCHER_KILL_CHANCE = 180;
+    const float SHOOTING_VARIANCE = 3f;
     const float SHOOTING_VELOCITY_ADJUST_FACTOR = 3f;
     const float AUDIO_PITCH_HALF_RANGE = 0.2f;
     const int AUDIO_SKIP_RANGE = 10;
@@ -103,6 +105,11 @@ public class Soldier : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (transform.position.y < -20)
+        {
+            EnterDeath();
+        }
+
         if (!timer.Active || state == State.Dead) return;
         switch (state)
         {
@@ -182,7 +189,11 @@ public class Soldier : MonoBehaviour
             var toEnemy = Vector3.Scale(enemyTarget.transform.position - transform.position, Y_MASK).normalized;
             Move(toEnemy);
         }
-        else if (Random.Range(0, 60) == 0)
+        else if (kind == Kind.Soldier && Random.Range(0, SOLDIER_KILL_CHANCE) == 0)
+        {
+            enemyTarget.EnterDeath();
+        }
+        else if (kind == Kind.Soldier && Random.Range(0, ARCHER_KILL_CHANCE) == 0)
         {
             enemyTarget.EnterDeath();
         }

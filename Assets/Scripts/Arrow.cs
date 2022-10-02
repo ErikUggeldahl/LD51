@@ -3,6 +3,7 @@ using UnityEngine;
 public class Arrow : MonoBehaviour
 {
     const float DESTROY_DELAY = 60;
+    const int ARROW_KILL_CHANCE = 3;
 
     public Vector3 desiredPosition;
     public Color color;
@@ -52,6 +53,7 @@ public class Arrow : MonoBehaviour
 
     void Update()
     {
+        // To prevent archers from killing themselves
         if (!collider.enabled)
         {
             if (lifetime < INITIAL_COLLIDER_DISABLE_TIME)
@@ -72,7 +74,7 @@ public class Arrow : MonoBehaviour
         //Debug.Log($"Arrow with force {initialForce} travelled {Vector3.Distance(d_initialPosition, transform.position)}m");
         //Debug.Log($"Arrow with desired distance {desiredDistance} travelled {Vector3.Distance(d_initialPosition, transform.position)}");
         var soldier = collision.collider.GetComponent<Soldier>();
-        if (soldier && soldier.state != Soldier.State.Dead)
+        if (soldier && soldier.state != Soldier.State.Dead && Random.Range(0, ARROW_KILL_CHANCE) == 0)
         {
             collision.collider.GetComponent<Soldier>().EnterDeath();
 
