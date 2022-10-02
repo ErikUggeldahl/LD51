@@ -7,18 +7,19 @@ public class Squad : MonoBehaviour
     public int squadID;
 
     public bool Active { get; private set; }
+    public Soldier Leader { get; private set; }
+
+    public Transform navigationTarget { get; private set; }
 
     Targeter targeter;
     public Soldier EnemyTarget { get; private set; }
-    Transform debugTarget;
 
     int nextSoldierIndex = 0;
-    int aliveCount = 0;
     Soldier[] soldiers;
 
     public Squad Create(int size, int teamID, int squadID)
     {
-        debugTarget = GameObject.Find("Debug Target").transform;
+        navigationTarget = GameObject.Find("Debug Target").transform;
 
         soldiers = new Soldier[size];
 
@@ -27,12 +28,36 @@ public class Squad : MonoBehaviour
 
         return this;
     }
-
-    void OnDeath(int index)
+    public void AddSoldier(Soldier soldier)
     {
-        aliveCount--;
+        soldier.squad = this;
+        soldier.indexInSquad = nextSoldierIndex;
+        soldier.OnDie += OnMemberDeath;
 
-        if (aliveCount == 0)
+        soldiers[nextSoldierIndex] = soldier;
+
+        if (nextSoldierIndex == 0)
+        {
+            Leader = soldier;
+            targeter = soldier.EnableTargeter();
+            targeter.OnTarget += OnTargetAcquired;
+
+            soldier.initialState = Soldier.UnitState.Navigating;
+        }
+        else
+        {
+            soldier.initialState = Soldier.UnitState.Following;
+        }
+
+        nextSoldierIndex++;
+
+        Active = true;
+    }
+
+
+    void OnMemberDeath(int index)
+    {
+        if (soldiers.Where((soldier) => soldier.State != Soldier.UnitState.Dead).Count() == 0)
         {
             Deactivate();
             return;
@@ -40,9 +65,10 @@ public class Squad : MonoBehaviour
 
         if (targeter.transform.parent.GetComponent<Soldier>().indexInSquad == index)
         {
-            Soldier firstAlive = soldiers.Where((soldier) => soldier.Alive).First();
+            Soldier firstAlive = soldiers.Where((soldier) => soldier.State != Soldier.UnitState.Dead).First();
             targeter.transform.parent = firstAlive.transform;
             targeter.transform.localPosition = Vector3.zero;
+            Leader = firstAlive;
         }
     }
 
@@ -51,6 +77,8 @@ public class Squad : MonoBehaviour
         Active = false;
 
         name = "(D) " + name;
+
+        Leader = null;
 
         targeter.OnTarget -= OnTargetAcquired;
         Destroy(targeter.gameObject);
@@ -65,17 +93,26 @@ public class Squad : MonoBehaviour
 
     void OnTargetAcquired(Soldier target)
     {
-        if (!Active) Debug.LogWarning("Target acquired after deactivated.");
-        if (EnemyTarget != null) Debug.LogWarning("Target acquired while it isn't yet cleared.");
+        if (!Active)
+        {
+            Debug.LogWarning("Target acquired after deactivated.");
+            return;
+        }
+
+        if (EnemyTarget != null)
+        {
+            Debug.LogWarning("Target acquired while it isn't yet cleared.");
+            return;
+        }
 
         targeter.gameObject.SetActive(false);
 
         EnemyTarget = target;
         EnemyTarget.OnDie += OnTargetDeath;
 
-        foreach (var soldier in soldiers)
+        foreach (var soldier in soldiers.Where((soldier) => soldier.State != Soldier.UnitState.Attacking && soldier.State != Soldier.UnitState.Dead))
         {
-            soldier.SetEnemyTarget(target);
+            soldier.EnterAttacking(EnemyTarget);
         }
     }
 
@@ -85,26 +122,5 @@ public class Squad : MonoBehaviour
 
         EnemyTarget.OnDie -= OnTargetDeath;
         EnemyTarget = null;
-    }
-
-    public void AddSoldier(Soldier soldier)
-    {
-        soldier.squad = this;
-        soldier.indexInSquad = nextSoldierIndex;
-        soldier.target = debugTarget;
-        soldier.OnDie += OnDeath;
-
-        soldiers[nextSoldierIndex] = soldier;
-
-        if (nextSoldierIndex == 0)
-        {
-            targeter = soldier.EnableTargeter();
-            targeter.OnTarget += OnTargetAcquired;
-        }
-
-        nextSoldierIndex++;
-        aliveCount++;
-
-        Active = true;
     }
 }

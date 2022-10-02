@@ -4,10 +4,20 @@ using UnityEngine.AI;
 
 public class Soldier : MonoBehaviour
 {
+    public enum UnitState
+    {
+        Navigating,
+        Following,
+        Defending,
+        Attacking,
+        Dead,
+    }
+
     const float SPEED = 2f;
     const float STOPPING_DISTANCE = 0.01f;
     const float ATTACK_DISTANCE = 2f;
     const float AUDIO_PITCH_HALF_RANGE = 0.2f;
+    const int AUDIO_SKIP_RANGE = 10;
     static Vector3 Y_MASK = new Vector3(1f, 0f, 1f);
 
     [SerializeField]
@@ -40,12 +50,12 @@ public class Soldier : MonoBehaviour
 
     public int indexInSquad;
 
-    public Transform target;
-    Soldier enemyTarget;
-    Vector3 lastTargetPosition;
+    public UnitState initialState = UnitState.Defending;
+    public UnitState State { get; private set; }
 
-    public bool Alive { get; private set; } = true;
     public event System.Action<int> OnDie;
+
+    Soldier enemyTarget;
 
     new Transform camera;
     const float VOCAL_COOLDOWN = 5f;
@@ -61,124 +71,182 @@ public class Soldier : MonoBehaviour
 
         renderer.material.color = settings.teams[squad.teamID].color;
 
+        agent.enabled = false;
         agent.updatePosition = false;
         agent.updateRotation = false;
 
-        if (indexInSquad != 0) agent.enabled = false;
-        else
+        switch (initialState)
         {
-            agent.destination = target.position;
+            case UnitState.Navigating: EnterNavigating(); break;
+            case UnitState.Following: EnterFollowing(); break;
+            case UnitState.Defending: break;
         }
     }
 
     void FixedUpdate()
     {
-        if (!timer.Active || !target || !Alive) return;
-
-        if (lastTargetPosition != target.position)
+        if (!timer.Active || State == UnitState.Dead) return;
+        switch (State)
         {
-            PlaySound(sounds.BattleCry(), true);
-            lastTargetPosition = target.position;
+            case UnitState.Navigating: Navigate(); break;
+            case UnitState.Following: Follow(); break;
+            case UnitState.Attacking: Attack(); break;
         }
-
-        MoveToTarget();
-        AttackEnemy();
     }
 
-    void MoveToTarget()
+    void Navigate()
     {
-        if (!agent.enabled) return;
+        if (!agent.enabled)
+        {
+            Debug.LogWarning("Trying to navigate without agent enabled.");
+            return;
+        }
 
-        //if (Vector3.Distance(transform.position, target.position) < 0.1f) return;
-        var toTarget = Vector3.Scale(agent.steeringTarget - transform.position, Y_MASK);
-        //var toTarget = Vector3.Scale(target.position - transform.position, Y_MASK);
-        if (toTarget.magnitude < STOPPING_DISTANCE) return;
-        toTarget.Normalize();
+        var toDestination = Vector3.Scale(agent.steeringTarget - transform.position, Y_MASK);
+        if (toDestination.magnitude < STOPPING_DISTANCE) return;
+        toDestination.Normalize();
 
-        billboard.flipped = camera.InverseTransformDirection(toTarget).x > 0f;
+        Move(toDestination);
+    }
+
+    void Follow()
+    {
+        if (!squad.Leader)
+        {
+            Debug.LogWarning("Trying to follow but leader is null.");
+            return;
+        }
+
+        if (squad.Leader.State == UnitState.Dead)
+        {
+            Debug.LogWarning("Trying to follow a dead leader.");
+            return;
+        }
+
+        var toLeader = Vector3.Scale(squad.Leader.transform.position - transform.position, Y_MASK);
+        if (toLeader.magnitude < STOPPING_DISTANCE) return;
+        toLeader.Normalize();
+
+        Move(toLeader);
+    }
+
+    void Move(Vector3 direction)
+    {
+        billboard.flipped = camera.InverseTransformDirection(direction).x > 0f;
 
         var deltaVelocity = Mathf.Clamp(SPEED - rigidbody.velocity.magnitude, 0f, SPEED);
-        rigidbody.AddForce(toTarget * deltaVelocity, ForceMode.Impulse);
+        rigidbody.AddForce(direction * deltaVelocity, ForceMode.Impulse);
         agent.nextPosition = transform.position;
     }
 
-    void AttackEnemy()
+    void Attack()
     {
-        if (enemyTarget && Vector3.Distance(transform.position, enemyTarget.transform.position) <= ATTACK_DISTANCE)
+        if (!enemyTarget)
         {
-            if (Random.Range(0, 60) == 0)
-            {
-                enemyTarget.Die();
-            }
+            Debug.LogWarning("Trying to attack but enemy target is dead.");
+            return;
+        }
+
+        if (Vector3.Distance(transform.position, enemyTarget.transform.position) > ATTACK_DISTANCE)
+        {
+            var toEnemy = Vector3.Scale(enemyTarget.transform.position - transform.position, Y_MASK).normalized;
+            Move(toEnemy);
+        }
+        else if (Random.Range(0, 60) == 0)
+        {
+            enemyTarget.EnterDeath();
         }
     }
 
-    void OnDrawGizmos()
+    bool SwitchStates(UnitState newState)
     {
-        if (agent.hasPath && !agent.pathPending)
+        if (State == UnitState.Dead)
         {
-            Gizmos.color = Color.green;
-            Gizmos.DrawLine(transform.position, agent.steeringTarget);
-
-            foreach (var corner in agent.path.corners)
-            {
-                Gizmos.DrawSphere(corner, 0.5f);
-            }
+            Debug.LogWarning("Trying to switch states from death.");
+            return false;
         }
 
-        if (enemyTarget == null || !Alive) return;
-
-        Gizmos.color = squad.teamID == 0 ? Color.red : Color.blue;
-        Gizmos.DrawLine(transform.position, enemyTarget.transform.position);
-    }
-
-    void OnCollisionEnter(Collision collision)
-    {
-        Soldier soldier = collision.collider.GetComponent<Soldier>();
-        if (soldier == null || soldier.squad.teamID == squad.teamID) return;
-
-        SetEnemyTarget(soldier);
-    }
-
-    public void SetEnemyTarget(Soldier enemy)
-    {
-        if (enemyTarget)
+        switch (State)
         {
-            enemyTarget.OnDie -= OnEnemyDeath;
+            case UnitState.Navigating: ExitNavigating(); break;
+            case UnitState.Attacking: ExitAttacking(); break;
         }
 
-        target = enemy.transform;
+        State = newState;
+        return true;
+    }
+
+    public void EnterNavigating()
+    {
+        if (!squad.navigationTarget)
+        {
+            Debug.LogWarning("Trying to switch to Navigating, but squad doesn't have a target.");
+            return;
+        }
+
+        if (!SwitchStates(UnitState.Navigating)) return;
+
+        agent.enabled = true;
+        agent.destination = squad.navigationTarget.position;
+    }
+
+    void ExitNavigating()
+    {
+        agent.enabled = false;
+    }
+
+    public void EnterFollowing()
+    {
+        if (!squad.Leader)
+        {
+            Debug.LogWarning("Trying to switch to Following, but leader is null.");
+            return;
+        }
+
+        if (squad.Leader.State == UnitState.Dead)
+        {
+            Debug.LogWarning("Trying to switch to Following, but the leader is dead.");
+            return;
+        }
+
+        if (!SwitchStates(UnitState.Following)) return;
+
+        SetSprite(sprites.run);
+        PlaySound(sounds.BattleCry());
+    }
+
+    public void EnterAttacking(Soldier enemy)
+    {
+        if (!enemy)
+        {
+            Debug.LogWarning("Trying to switch to Attacking, but enemy is null.");
+            return;
+        }
+
+        if (enemy.State == UnitState.Dead)
+        {
+            Debug.LogWarning("Trying to switch to Attacking, but enemy is dead.");
+            return;
+        }
+
+        if (!SwitchStates(UnitState.Attacking)) return;
+
         enemyTarget = enemy;
         enemyTarget.OnDie += OnEnemyDeath;
+
+        SetSprite(sprites.Attack());
+        PlaySound(sounds.BattleCry());
     }
 
-    void OnEnemyDeath(int _)
+    void ExitAttacking()
     {
-        if (squad.EnemyTarget)
-        {
-            target = squad.EnemyTarget.transform;
-            enemyTarget = squad.EnemyTarget;
-        }
-        else
-        {
-            enemyTarget = null;
-        }
+        enemyTarget.OnDie -= OnEnemyDeath;
+        enemyTarget = null;
     }
 
-    public Targeter EnableTargeter()
+    public void EnterDeath()
     {
-        var targeterGO = Instantiate(targeterPre);
-        var targeter = targeterGO.GetComponent<Targeter>();
-        targeter.transform.parent = transform;
-        targeter.transform.localPosition = Vector3.zero;
-        targeter.teamID = squad.teamID;
-        return targeter;
-    }
-
-    public void Die()
-    {
-        if (!Alive) return;
-        Alive = false;
+        if (!SwitchStates(UnitState.Dead)) return;
 
         name = "(D) " + name;
         gameObject.layer = 0;
@@ -196,6 +264,59 @@ public class Soldier : MonoBehaviour
         enabled = false;
     }
 
+    void OnDrawGizmos()
+    {
+        if (agent && agent.enabled && agent.hasPath && !agent.pathPending)
+        {
+            Gizmos.color = Color.green;
+            Gizmos.DrawLine(transform.position, agent.steeringTarget);
+
+            foreach (var corner in agent.path.corners)
+            {
+                Gizmos.DrawSphere(corner, 0.5f);
+            }
+        }
+
+        if (enemyTarget == null || State == UnitState.Dead) return;
+
+        Gizmos.color = squad.teamID == 0 ? Color.red : Color.blue;
+        Gizmos.DrawLine(transform.position, enemyTarget.transform.position);
+    }
+
+    void OnCollisionEnter(Collision collision)
+    {
+        Soldier soldier = collision.collider.GetComponent<Soldier>();
+        if (soldier == null || soldier.squad.teamID == squad.teamID) return;
+
+        EnterAttacking(soldier);
+    }
+
+    void OnEnemyDeath(int _)
+    {
+        if (squad.EnemyTarget && squad.EnemyTarget.State != UnitState.Dead)
+        {
+            EnterAttacking(squad.EnemyTarget);
+        }
+        else if (squad.Leader == this)
+        {
+            EnterNavigating();
+        }
+        else
+        {
+            EnterFollowing();
+        }
+    }
+
+    public Targeter EnableTargeter()
+    {
+        var targeterGO = Instantiate(targeterPre);
+        var targeter = targeterGO.GetComponent<Targeter>();
+        targeter.transform.parent = transform;
+        targeter.transform.localPosition = Vector3.zero;
+        targeter.teamID = squad.teamID;
+        return targeter;
+    }
+
     void SetSprite(Texture sprite)
     {
         renderer.material.mainTexture = sprite;
@@ -203,7 +324,7 @@ public class Soldier : MonoBehaviour
 
     void PlaySound(AudioClip sound, bool vocal = false)
     {
-        if (indexInSquad != 0 && Random.Range(0, 10) != 0) return;
+        if (indexInSquad != 0 && Random.Range(0, AUDIO_SKIP_RANGE) != 0) return;
 
         if (vocal)
         {

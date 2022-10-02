@@ -148,7 +148,7 @@ public class Spawner : MonoBehaviour
         var soldier = hit.collider.GetComponent<Soldier>();
         if (soldier == null) return;
 
-        soldier.Die();
+        soldier.EnterDeath();
     }
 
     void DebugMoveTarget()
