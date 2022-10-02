@@ -8,7 +8,7 @@ public class Spawner : MonoBehaviour
 {
     const int MAX_SPAWN = 100;
     const float SPACING = 2;
-    static Vector3 Y_MASK = new Vector3(1, 0, 1);
+    static readonly Vector3 Y_MASK = new Vector3(1, 0, 1);
 
     [SerializeField]
     BattleSettings settings;
@@ -30,10 +30,17 @@ public class Spawner : MonoBehaviour
 
     Vector3[] spawnPositions = new Vector3[MAX_SPAWN];
 
+    const float RAY_DISTANCE = 500;
+    int SOLDIER_LAYER_MASK;
+    int SURFACE_LAYER_MASK;
+
     void Start()
     {
         camera = Camera.main.transform;
         squadNextIDs = new int[settings.teams.Length];
+
+        SOLDIER_LAYER_MASK = LayerMask.GetMask("Soldier");
+        SURFACE_LAYER_MASK = LayerMask.GetMask("Default");
 
         CreateUnitStore();
         CreateMarkers();
@@ -113,7 +120,7 @@ public class Spawner : MonoBehaviour
     {
         RaycastHit hit;
         var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-        if (!Physics.Raycast(ray, out hit)) return;
+        if (!Physics.Raycast(ray, out hit, RAY_DISTANCE, SURFACE_LAYER_MASK)) return;
 
         CalculateSpawnPositions(spawnPositions, hit.point, 20, 4);
 
@@ -136,7 +143,7 @@ public class Spawner : MonoBehaviour
     {
         RaycastHit hit;
         var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-        if (!Physics.Raycast(ray, out hit)) return;
+        if (!Physics.Raycast(ray, out hit, RAY_DISTANCE, SOLDIER_LAYER_MASK)) return;
 
         var soldier = hit.collider.GetComponent<Soldier>();
         if (soldier == null) return;
@@ -148,17 +155,14 @@ public class Spawner : MonoBehaviour
     {
         RaycastHit hit;
         var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-        if (!Physics.Raycast(ray, out hit)) return;
+        if (!Physics.Raycast(ray, out hit, RAY_DISTANCE)) return;
 
         GameObject.Find("Debug Target").transform.position = hit.point;
     }
 
     void DebugSpawn(int teamID)
     {
-        RaycastHit hit;
-        var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-        if (!Physics.Raycast(ray, out hit)) return;
-        Spawn(teamID, hit.point, 20, 4);
+        Spawn(teamID, 20, 4);
     }
 
     void CalculateSpawnPositions(in Vector3[] positions, Vector3 origin, int count, int rows)
@@ -174,7 +178,7 @@ public class Spawner : MonoBehaviour
         }
     }
 
-    void Spawn(int teamID, Vector3 origin, int count, int rows)
+    void Spawn(int teamID, int count, int rows)
     {
         var squadID = squadNextIDs[teamID];
         var squadParent = new GameObject($"Squad {squadID}", typeof(Squad)).transform;

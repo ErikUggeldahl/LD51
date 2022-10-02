@@ -1,7 +1,7 @@
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "SoldierSound", menuName = "ScriptableObjects/SoldierSound", order = 1)]
-public class SoldierSound : ScriptableObject
+[CreateAssetMenu(fileName = "SoldierSounds", menuName = "ScriptableObjects/SoldierSounds", order = 1)]
+public class SoldierSounds : ScriptableObject
 {
     public AudioClip[] battleCries;
 

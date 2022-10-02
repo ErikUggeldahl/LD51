@@ -1,3 +1,4 @@
+using System.Linq;
 using UnityEngine;
 
 public class Squad : MonoBehaviour
@@ -7,6 +8,8 @@ public class Squad : MonoBehaviour
 
     public bool Active { get; private set; }
 
+    Targeter targeter;
+    public Soldier EnemyTarget { get; private set; }
     Transform debugTarget;
 
     int nextSoldierIndex = 0;
@@ -29,7 +32,21 @@ public class Squad : MonoBehaviour
     {
         aliveCount--;
 
-        if (aliveCount == 0) Deactivate();
+        if (aliveCount == 0)
+        {
+            Deactivate();
+            return;
+        }
+
+        Debug.Log($"Checking if transfer necessary with alive count: {aliveCount} and targeter?: {targeter != null}");
+
+        if (targeter.transform.parent.GetComponent<Soldier>().indexInSquad == index)
+        {
+            Soldier firstAlive = soldiers.Where((soldier) => soldier.Alive).First();
+            targeter.transform.parent = firstAlive.transform;
+            targeter.transform.localPosition = Vector3.zero;
+            Debug.Log($"Transferred targeter to {firstAlive.indexInSquad}");
+        }
     }
 
     void Deactivate()
@@ -37,6 +54,40 @@ public class Squad : MonoBehaviour
         Active = false;
 
         name = "(D) " + name;
+
+        targeter.OnTarget -= OnTargetAcquired;
+        Destroy(targeter.gameObject);
+        targeter = null;
+
+        if (EnemyTarget)
+        {
+            EnemyTarget.OnDie -= OnTargetDeath;
+            EnemyTarget = null;
+        }
+    }
+
+    void OnTargetAcquired(Soldier target)
+    {
+        if (!Active) Debug.LogWarning("Target acquired after deactivated.");
+        if (EnemyTarget != null) Debug.LogWarning("Target acquired while it isn't yet cleared.");
+
+        targeter.gameObject.SetActive(false);
+
+        EnemyTarget = target;
+        EnemyTarget.OnDie += OnTargetDeath;
+
+        foreach (var soldier in soldiers)
+        {
+            soldier.SetEnemyTarget(target);
+        }
+    }
+
+    void OnTargetDeath(int _)
+    {
+        targeter.gameObject.SetActive(true);
+
+        EnemyTarget.OnDie -= OnTargetDeath;
+        EnemyTarget = null;
     }
 
     public void AddSoldier(Soldier soldier)
@@ -47,6 +98,12 @@ public class Squad : MonoBehaviour
         soldier.OnDie += OnDeath;
 
         soldiers[nextSoldierIndex] = soldier;
+
+        if (nextSoldierIndex == 0)
+        {
+            targeter = soldier.EnableTargeter();
+            targeter.OnTarget += OnTargetAcquired;
+        }
 
         nextSoldierIndex++;
         aliveCount++;

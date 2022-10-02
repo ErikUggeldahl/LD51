@@ -110,7 +110,7 @@ GameObject:
   - component: {fileID: 6286920993830998287}
   - component: {fileID: 2158934599627703766}
   - component: {fileID: 6286920993830998284}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Soldier
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -182,7 +182,7 @@ AudioSource:
   Spatialize: 0
   SpatializePostEffects: 0
   Priority: 200
-  DopplerLevel: 1
+  DopplerLevel: 0
   MinDistance: 1
   MaxDistance: 500
   Pan2D: 0
@@ -271,11 +271,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 54b284c021a73ef499f19031aa3b25b4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  sprites: {fileID: 11400000, guid: a48c5c30f6c2e814583cd6b2403586c5, type: 2}
   sounds: {fileID: 11400000, guid: c62d1508beb1d3a48a0a9c98e827c2fd, type: 2}
   rigidbody: {fileID: 6286920993830998287}
   audio: {fileID: 2158934599627703766}
   billboard: {fileID: 6286920993644197580}
   renderer: {fileID: 6286920993644197581}
+  targeterPre: {fileID: 9010790804751149018, guid: 567b818146b1eba4ea44bfc26a9e4700,
+    type: 3}
   settings: {fileID: 11400000, guid: c317ea89b65154942af4f3f27f32868c, type: 2}
   timer: {fileID: 0}
   squad: {fileID: 0}

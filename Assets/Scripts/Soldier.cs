@@ -1,13 +1,18 @@
+using System.Collections;
 using UnityEngine;
 
 public class Soldier : MonoBehaviour
 {
     const float SPEED = 2f;
+    const float ATTACK_DISTANCE = 2f;
     const float AUDIO_PITCH_HALF_RANGE = 0.2f;
     static Vector3 Y_MASK = new Vector3(1f, 0f, 1f);
 
     [SerializeField]
-    SoldierSound sounds;
+    SoldierSprites sprites;
+
+    [SerializeField]
+    SoldierSounds sounds;
 
     [SerializeField]
     new Rigidbody rigidbody;
@@ -21,6 +26,9 @@ public class Soldier : MonoBehaviour
     [SerializeField]
     new Renderer renderer;
 
+    [SerializeField]
+    GameObject targeterPre;
+
     public BattleSettings settings;
     public Timer timer;
     public Squad squad;
@@ -28,12 +36,18 @@ public class Soldier : MonoBehaviour
     public int indexInSquad;
 
     public Transform target;
+    Soldier enemyTarget;
     Vector3 lastTargetPosition;
 
     public bool Alive { get; private set; } = true;
     public event System.Action<int> OnDie;
 
     new Transform camera;
+    const float VOCAL_COOLDOWN = 5f;
+    const float VOCAL_COOLDOWN_RANGE = 3f;
+    const float VOCAL_DELAY_RANGE = 0.5f;
+    bool vocalsReady = true;
+
     void Start()
     {
         camera = Camera.main.transform;
@@ -49,10 +63,16 @@ public class Soldier : MonoBehaviour
 
         if (lastTargetPosition != target.position)
         {
-            PlaySound(sounds.BattleCry());
+            PlaySound(sounds.BattleCry(), true);
             lastTargetPosition = target.position;
         }
 
+        MoveToTarget();
+        AttackEnemy();
+    }
+
+    void MoveToTarget()
+    {
         var toTarget = Vector3.Scale((target.position - transform.position), Y_MASK);
         if (toTarget.magnitude < 1f) return;
         toTarget.Normalize();
@@ -63,14 +83,79 @@ public class Soldier : MonoBehaviour
         rigidbody.AddForce(toTarget * deltaVelocity, ForceMode.VelocityChange);
     }
 
+    void AttackEnemy()
+    {
+        if (enemyTarget && Vector3.Distance(transform.position, enemyTarget.transform.position) <= ATTACK_DISTANCE)
+        {
+            if (Random.Range(0, 60) == 0)
+            {
+                enemyTarget.Die();
+            }
+        }
+    }
+
+    void OnDrawGizmos()
+    {
+        if (enemyTarget == null || !Alive) return;
+
+        Gizmos.color = squad.teamID == 0 ? Color.red : Color.blue;
+        Gizmos.DrawLine(transform.position, enemyTarget.transform.position);
+    }
+
+    void OnCollisionEnter(Collision collision)
+    {
+        Soldier soldier = collision.collider.GetComponent<Soldier>();
+        if (soldier == null || soldier.squad.teamID == squad.teamID) return;
+
+        SetEnemyTarget(soldier);
+    }
+
+    public void SetEnemyTarget(Soldier enemy)
+    {
+        if (enemyTarget)
+        {
+            enemyTarget.OnDie -= OnEnemyDeath;
+        }
+
+        target = enemy.transform;
+        enemyTarget = enemy;
+        enemyTarget.OnDie += OnEnemyDeath;
+    }
+
+    void OnEnemyDeath(int _)
+    {
+        if (squad.EnemyTarget)
+        {
+            target = squad.EnemyTarget.transform;
+            enemyTarget = squad.EnemyTarget;
+        }
+        else
+        {
+            enemyTarget = null;
+        }
+    }
+
+    public Targeter EnableTargeter()
+    {
+        var targeterGO = Instantiate(targeterPre);
+        var targeter = targeterGO.GetComponent<Targeter>();
+        targeter.transform.parent = transform;
+        targeter.transform.localPosition = Vector3.zero;
+        targeter.teamID = squad.teamID;
+        return targeter;
+    }
+
     public void Die()
     {
+        if (!Alive) return;
         Alive = false;
 
         name = "(D) " + name;
+        gameObject.layer = 0;
 
         var color = renderer.material.color;
         renderer.material.color = settings.teams[squad.teamID].deadColor;
+        SetSprite(sprites.die);
 
         Destroy(GetComponent<Rigidbody>());
         Destroy(GetComponent<Collider>());
@@ -78,15 +163,41 @@ public class Soldier : MonoBehaviour
         OnDie(indexInSquad);
     }
 
+    void SetSprite(Texture sprite)
+    {
+        renderer.material.mainTexture = sprite;
+    }
+
     void PlaySound(AudioClip sound, bool vocal = false)
     {
         if (indexInSquad != 0 && Random.Range(0, 10) != 0) return;
 
         if (vocal)
-            audio.pitch = Random.Range(1 - AUDIO_PITCH_HALF_RANGE, 1 + AUDIO_PITCH_HALF_RANGE);
+        {
+            StartCoroutine(PlayVocal(sound));
+        }
         else
+        {
             audio.pitch = 1f;
+            audio.PlayOneShot(sound);
+        }
+    }
 
+    IEnumerator PlayVocal(AudioClip sound)
+    {
+        if (!vocalsReady || audio.isPlaying) yield break;
+
+        yield return new WaitForSeconds(Random.Range(0f, VOCAL_DELAY_RANGE));
+
+        audio.pitch = Random.Range(1 - AUDIO_PITCH_HALF_RANGE, 1 + AUDIO_PITCH_HALF_RANGE);
         audio.PlayOneShot(sound);
+        StartCoroutine(CooldownVocals());
+    }
+
+    IEnumerator CooldownVocals()
+    {
+        vocalsReady = false;
+        yield return new WaitForSecondsRealtime(VOCAL_COOLDOWN + Random.Range(0f, VOCAL_COOLDOWN_RANGE));
+        vocalsReady = true;
     }
 }
